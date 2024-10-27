@@ -1,2 +1,7 @@
-package com.javaacademy.onegramchat.exceptions;public class CommandNotExistsException {
+package com.javaacademy.onegramchat.exceptions;
+
+import lombok.experimental.StandardException;
+
+@StandardException
+public class CommandNotExistsException extends RuntimeException{
 }

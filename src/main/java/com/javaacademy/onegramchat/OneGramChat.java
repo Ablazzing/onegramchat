@@ -1,25 +1,30 @@
-package org.example.homework.four.ex4;
+package com.javaacademy.onegramchat;
 
-import org.example.homework.four.ex4.exceptions.IncorrectPasswordException;
-import org.example.homework.four.ex4.exceptions.UnAuthorizeException;
-import org.example.homework.four.ex4.exceptions.UserNotFoundException;
 
+import com.javaacademy.onegramchat.exceptions.IncorrectPasswordException;
+import com.javaacademy.onegramchat.exceptions.UnAuthorizeException;
+import com.javaacademy.onegramchat.exceptions.UserAlreadyExistsException;
+import com.javaacademy.onegramchat.exceptions.UserNotFoundException;
+import com.javaacademy.onegramchat.user.Message;
+import com.javaacademy.onegramchat.user.User;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 
+import static com.javaacademy.onegramchat.ChatCommand.findCommandByName;
+import static com.javaacademy.onegramchat.ChatMessage.INPUT_MESSAGE;
+import static com.javaacademy.onegramchat.ChatMessage.INPUT_PASSWORD;
+import static com.javaacademy.onegramchat.ChatMessage.INPUT_USERNAME;
+import static com.javaacademy.onegramchat.ChatMessage.NO_COMMAND_TYPE;
+
 public class OneGramChat {
-    public static final Scanner SCANNER = new Scanner(System.in);
+    private static final Scanner SCANNER = new Scanner(System.in);
     private static final String MESSAGE_MASK = "письмо %s %s: %s\n";
-    private static final String CHAT_COMMANDS_MESSAGE = """
-            Введите команду
-            "войти" - запуск функции "войти пользователю"
-            "новый" - запуск функции "создать пользователя"
-            "выйти" - запуск функции "выйти пользователю"
-            "написать" - запуск функции "написать письмо"
-            "прочитать" - запуск функции "прочитать письмо"
-            "exit" - окончание работы программы
-            """;
-    private User[] users = new User[100];
-    private int currentUsersCount = 0;
+    private static final String CHAT_COMMANDS_MESSAGE = "Введите команду\n";
+
+    private final Map<String, User> users = new HashMap<>();
     private User currentUser = null;
 
     /**
@@ -36,31 +41,42 @@ public class OneGramChat {
         System.out.println("Добро пожаловать в OneGramChat!");
         boolean isEndOfProgram = false;
         do {
-            System.out.println(CHAT_COMMANDS_MESSAGE);
+            printCommands();
             String commandName = SCANNER.nextLine();
             try {
-                isEndOfProgram = runCommand(commandName);
+                ChatCommand chatCommand = findCommandByName(commandName);
+                isEndOfProgram = runCommand(chatCommand);
             } catch (UserNotFoundException | IncorrectPasswordException | UnAuthorizeException e) {
                 System.out.println(e.getMessage());
             }
-        } while (isEndOfProgram);
+        } while (!isEndOfProgram);
+    }
+
+    /**
+     * Печать команд
+     */
+    private void printCommands() {
+        StringBuilder stringBuilder = new StringBuilder(CHAT_COMMANDS_MESSAGE);
+        Arrays.stream(ChatCommand.values())
+                .forEach(chatCommand -> stringBuilder.append(chatCommand.getFullCommandDescription()).append("\n"));
+        System.out.println(stringBuilder);
     }
 
     /**
      * Запуск команды
      */
-    private boolean runCommand(String commandName) throws UserNotFoundException,
+    private boolean runCommand(ChatCommand chatCommand) throws UserNotFoundException,
             IncorrectPasswordException, UnAuthorizeException {
-        switch (commandName) {
-            case "войти" -> signInCommand();
-            case "новый" -> createUserCommand();
-            case "выйти" -> logoutCommand();
-            case "написать" -> createNewMessageCommand();
-            case "прочитать" -> printAllMessagesCommand();
-            case "exit" -> {
+        switch (chatCommand) {
+            case ENTER_USER -> signInCommand();
+            case NEW_USER -> createUserCommand();
+            case EXIT_USER -> logoutCommand();
+            case NEW_MESSAGE -> createNewMessageCommand();
+            case READ_MESSAGES -> printAllMessagesCommand();
+            case EXIT -> {
                 return true;
             }
-            default -> System.out.println("Нет такой команды, введите заново");
+            default -> System.out.println(NO_COMMAND_TYPE);
         }
         return false;
     }
@@ -86,9 +102,9 @@ public class OneGramChat {
      */
     private void createNewMessageCommand() throws UnAuthorizeException, UserNotFoundException {
         checkAuthorization();
-        System.out.println("Введите имя пользователя");
+        System.out.println(INPUT_USERNAME);
         User recipient = findUserByUsername(SCANNER.nextLine());
-        System.out.println("Введите текст письма");
+        System.out.println(INPUT_MESSAGE);
         String text = SCANNER.nextLine();
         writeMessage(text, currentUser, recipient);
     }
@@ -105,45 +121,37 @@ public class OneGramChat {
      */
     private void printAllMessagesCommand() throws UnAuthorizeException {
         checkAuthorization();
-        for (Message message : currentUser.getMessages()) {
-            if (message == null) {
-                break;
-            }
-            String messageType = message.isInbox() ? "от" : "к";
-            System.out.printf(MESSAGE_MASK,
-                    messageType,
-                    message.getUserSender().getName(),
-                    message.getText());
-        }
+        currentUser.getMessages().forEach(this::printMessage);
     }
 
     /**
-     * Увеличение массива пользователей (в случае переполнения)
+     * Печать сообщения
      */
-    private void incrementUsers() {
-        if (currentUsersCount == users.length) {
-            User[] userCopy = new User[(int) (users.length * 1.5)];
-            System.arraycopy(users, 0, userCopy, 0, users.length);
-            users = userCopy;
-        }
+    private void printMessage(Message message) {
+        String messageType = message.isInbox() ? "от" : "к";
+        System.out.printf(MESSAGE_MASK,
+                messageType,
+                message.getUserSender().getName(),
+                message.getText());
     }
 
     /**
      * Добавить пользователя в массив пользователей
      */
     private void addUserToUsers(User user) {
-        incrementUsers();
-        users[currentUsersCount] = user;
-        currentUsersCount++;
+        if (users.containsKey(user.getName())) {
+            throw new UserAlreadyExistsException();
+        }
+        users.put(user.getName(), user);
     }
 
     /**
      * Создать временного пользователя
      */
     private User createTempUser() {
-        System.out.println("Введите имя пользователя");
+        System.out.println(INPUT_USERNAME);
         String username = SCANNER.nextLine();
-        System.out.println("Введите пароль");
+        System.out.println(INPUT_PASSWORD);
         String password = SCANNER.nextLine();
         return new User(username, password);
     }
@@ -152,15 +160,11 @@ public class OneGramChat {
      * Поиск пользователя по имени
      */
     private User findUserByUsername(String username) throws UserNotFoundException {
-        for (User user : users) {
-            if (user == null) {
-                throw new UserNotFoundException("Пользователь не найден");
-            }
-            if (user.getName().equals(username)) {
-                return user;
-            }
+        User user = users.get(username);
+        if (user == null) {
+            throw new UserNotFoundException("Пользователь не найден");
         }
-        throw new UserNotFoundException("Пользователь не найден");
+        return user;
     }
 
     /**
@@ -197,12 +201,6 @@ public class OneGramChat {
      * Добавить сообщение пользователю
      */
     private void addMessageToUser(Message message, User user) {
-        for (int i = 0; i < user.getMessages().length; i++) {
-            if (user.getMessages()[i] == null) {
-                user.getMessages()[i] = message;
-                return;
-            }
-        }
-
+        user.getMessages().add(message);
     }
 }

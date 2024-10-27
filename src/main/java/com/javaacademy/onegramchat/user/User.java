@@ -1,24 +1,17 @@
-package com.javaacademy.onegramchat;
+package com.javaacademy.onegramchat.user;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.ToString;
+
+import java.util.ArrayList;
+import java.util.List;
+
+@Getter
+@ToString
+@RequiredArgsConstructor
 public class User {
-    private String name;
-    private String password;
-    private Message[] messages = new Message[100];
-
-    public User(String name, String password) {
-        this.name = name;
-        this.password = password;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public Message[] getMessages() {
-        return messages;
-    }
+    private final String name;
+    private final String password;
+    private List<Message> messages = new ArrayList<>();
 }

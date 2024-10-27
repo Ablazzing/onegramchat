@@ -1,4 +1,4 @@
-package org.example.homework.four.ex4.exceptions;
+package com.javaacademy.onegramchat.exceptions;
 
 public class UnAuthorizeException extends Exception {
     public UnAuthorizeException(String message) {
